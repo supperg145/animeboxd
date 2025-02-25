@@ -1,99 +1,88 @@
-//Imports
-const User = require("../models/User");
-const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const supabase = require("../config/supabase");
 
-// Function to register a new user
 const registerUser = async (req, res) => {
   try {
-    // Extract user data from request body
-    const { name, email, password, confirmPassword } = req.body;
+    const { email, password, confirmPassword } = req.body;
+    
+    if(!email || !password || !confirmPassword) {
+      return res.status(400).json({ message: "Email and password and confirm password are required" });
+    };
 
-    // Check if all fields are provided
-    if (!name || !email || !password || !confirmPassword) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    // Check if password and confirm password match
-    if (password !== confirmPassword) {
+    if(password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match" });
-    }
+    };
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const { data: existingUser } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
+
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new user instance
-    const user = new User({
-      name,
+    const { data, error } = await supabase.auth.signUp({
       email,
-      password: hashedPassword,
+      password
     });
 
-    // Save user to database
-    await user.save();
-    res.status(201).json({ message: "User created successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
 
-// Function to log in a user
+    return res.status(200).json({ message: "User registered successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+    if(!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    };
 
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
     });
 
-    res.cookie("userToken", token);
-    
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
 
-    res.status(200).json({ message: "Login successful" });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.cookie("userToken", data.session.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 3600 * 24 * 7, // 1 week
+    });
+
+    return res.status(200).json({ message: "User logged in successfully", user: data.user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
   }
 };
-// Function to log out a user
+
 const logoutUser = async (req, res) => {
-  // Clear authentication cookie
-  // Return success response
-  res.clearCookie("token");
-  res.status(200).json({ message: "Logout successful" });
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.clearCookie("userToken");
+
+    return res.status(200).json({ message: "User logged out successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
+  }
 };
 
-//Delete user
-const deleteUser = (req, res) => {
-  // Retrieve user ID from request object
-  // Delete user from database
-  // Return success response
-};
-
-// Export the controller functions
-module.exports = {
-  registerUser,
-  loginUser,
-  logoutUser,
-  deleteUser,
-};
+module.exports = { registerUser, loginUser, logoutUser };

@@ -1,20 +1,26 @@
-// Middleware to authenticate user using cookies
-//Imports
-const jwt = require("jsonwebtoken");
-const authenticateUser = async (req, res, next) => {
-    const token = req.cookies.userToken;
-    console.log(token)
-    if(!token) {
-      return res.status(401).json({ message: "Unauthorized" });
-    };
+//Middleware to authenticate users
+const supabase = require("../config/supabase");
 
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      next();
-    } catch (err) {
-      return res.status(400).json({ message: "Invalid token" });
-    };
-  };
-  
-  module.exports = authenticateUser;
+const authenticateUser = async (req, res) => {
+  const token = req.cookies.access_token; //Getting token from cookies
+
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    //Verifying token
+    const { data, error } = await supabase.auth.api.getUser(token);
+    if (error || !user) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = authenticateUser;

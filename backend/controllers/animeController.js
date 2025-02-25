@@ -1,4 +1,3 @@
-const User = require("../models/User");
 const axios = require("axios");
 const addToWatchlist = async (req, res) => {
   try {
