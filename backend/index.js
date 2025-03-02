@@ -1,9 +1,11 @@
 const express = require('express');
 const morgan = require('morgan');
-const userRoutes = require('./routes/userRoutes');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const supabase = require('./config/supabase');
+//import routes
+const animeRoutes = require('./routes/anilistRoutes');
+const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 require('dotenv').config();
 
@@ -23,6 +25,7 @@ app.use(cors({
 //routes
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/anime/', animeRoutes);
 
 //Test supabase connection
 app.get('/test-supabase', async (req, res) => {
