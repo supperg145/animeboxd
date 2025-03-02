@@ -4,6 +4,7 @@ const userRoutes = require('./routes/userRoutes');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const supabase = require('./config/supabase');
+const authRoutes = require('./routes/authRoutes');
 require('dotenv').config();
 
 //initialize express
@@ -21,6 +22,7 @@ app.use(cors({
 
 //routes
 app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 
 //Test supabase connection
 app.get('/test-supabase', async (req, res) => {

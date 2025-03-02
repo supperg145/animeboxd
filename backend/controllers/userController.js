@@ -85,10 +85,11 @@ const loginUser = async (req, res) => {
 
     res.cookie("userToken", data.session.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: false,
+      sameSite: "lax",
       maxAge: 3600 * 24 * 7, // 1 week
     });
+    console.log("Login successful");
 
     return res
       .status(200)
