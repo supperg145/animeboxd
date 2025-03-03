@@ -28,23 +28,47 @@ exports.getAnimeById = async (req, res) => {
   }
 
   const query = `
-    query ($id: Int) {
-      Media(id: $id, type: ANIME) {
+  query ($id: Int) {
+    Media(id: $id, type: ANIME) {
+      id
+      title {
+        romaji
+        english
+        native
+      }
+      description
+      episodes
+      status
+      coverImage {
+        large
+      }
+      trailer {
         id
-        title {
-          romaji
-          english
-          native
-        }
-        description
-        episodes
-        status
-        coverImage {
-          large
+        site
+        thumbnail
+      }
+      genres
+      averageScore
+      startDate {
+        year
+        month
+        day
+      }
+      endDate {
+        year
+        month
+        day
+      }
+      studios {
+        edges {
+          node {
+            name
+          }
         }
       }
     }
-  `;
+  }
+`;
 
   try {
     const data = await makeAnilistRequest(query, { id: parseInt(id) });
