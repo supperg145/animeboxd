@@ -1,160 +1,110 @@
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import Head from "next/head";
+import { FiArrowLeft, FiHeart } from "react-icons/fi";
+
+import { useAnimeData } from "../../components/hooks/useAnimeData";
+import { useWatchlist } from "../../components/hooks/useWatchlist";
+import { AnimeHeader } from "../../components/animeDetail/AnimeHeader";
+import { AnimeCover } from "../../components/animeDetail/AnimeCover";
+import { AnimeMetadata } from "../../components/animeDetail/AnimeMetadata";
+import { AnimeGenres } from "../../components/animeDetail/AnimeGenres";
+import { AnimeStudios } from "../../components/animeDetail/AnimeStudios";
+import { AnimeLinks } from "../../components/animeDetail/AnimeLinks";
+import { LoadingState } from "../../components/animeDetail/LoadingState";
+import { ErrorState } from "../../components/animeDetail/ErrorState";
+import { NotFoundState } from "../../components/animeDetail/NotFoundState";
+
+import { useAuth } from "../../contexts/AuthContext"; // Import the useAuth hook
 
 const AnimeDetail = () => {
   const router = useRouter();
-  const { id } = router.query; // Get anime ID from the URL
-  const [anime, setAnime] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { id } = router.query;
+  const { anime, loading, error, retry, retryCount } = useAnimeData(id);
+  const { inWatchlist, isUpdatingWatchlist, toggleWatchlist } = useWatchlist(anime, id);
+  const { isLoggedIn } = useAuth(); // Get auth state from context
 
-  useEffect(() => {
-    if (!id) return; // Wait until the ID is available
-
-    const fetchAnimeDetails = async () => {
-      try {
-        const res = await fetch(
-          `http://localhost:5000/api/anime/searchbyid/${id}`
-        );
-        if (!res.ok) {
-          throw new Error(`Error: ${res.status} - ${res.statusText}`);
-        }
-        const data = await res.json();
-        setAnime(data);
-      } catch (error) {
-        console.error("Error fetching anime details:", error);
-        setError(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnimeDetails();
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-purple-500 to-indigo-600">
-        <div className="text-center text-2xl text-white">Loading...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-red-500 to-pink-600">
-        <div className="text-center text-2xl text-white">
-          Error: {error.message}
-        </div>
-      </div>
-    );
-  }
-
-  if (!anime) {
-    return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-r from-gray-700 to-gray-900">
-        <div className="text-center text-2xl text-white">Anime not found.</div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState />;
+  if (error) return <ErrorState error={error} retry={retry} retryCount={retryCount} router={router} />;
+  if (!anime) return <NotFoundState />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-purple-500 to-indigo-600 p-4 sm:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Title */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center text-white mb-6">
-          {anime.title.english}
-        </h1>
+    <>
+      <Head>
+        <title>
+          {anime.title.english || anime.title.romaji} | AnimeTracker
+        </title>
+        <meta
+          name="description"
+          content={anime.description?.substring(0, 160) || "Anime details"}
+        />
+      </Head>
 
-        {/* Content Container */}
-        <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-          <div className="flex flex-col md:flex-row">
-            {/* Cover Image (Mobile: Full Width, Desktop: 1/3 Width) */}
-            <div className="w-full md:w-1/3 relative">
-              <Image
-                src={anime.coverImage?.large || "/placeholder-image.jpg"}
-                alt={anime.title.english}
-                width={400}
-                height={600}
-                objectFit="cover"
-                className="rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
-              />
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-900 pb-12">
+        {/* Back Button */}
+        <div className="container mx-auto px-4 pt-6">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center text-purple-200 hover:text-white transition"
+            aria-label="Go back to previous page"
+          >
+            <FiArrowLeft className="mr-2" /> Back to Browse
+          </button>
+        </div>
+
+        {/* Main Content */}
+        <div className="container mx-auto px-4 pt-6 max-w-6xl relative">
+          {/* Watchlist Button */}
+          {isLoggedIn && (
+            <div className="absolute top-0 left-4 z-10 p-3 rounded-full shadow-md transition-all">
+              <button
+                onClick={toggleWatchlist}
+                disabled={isUpdatingWatchlist}
+                className={`bg-white/90 text-gray-800 hover:bg-white p-3 rounded-full shadow-md ${
+                  isUpdatingWatchlist ? "opacity-70 cursor-not-allowed" : ""
+                }`}
+                aria-label={
+                  inWatchlist ? "Remove from watchlist" : "Add to watchlist"
+                }
+              >
+                <FiHeart
+                  className={`text-lg ${inWatchlist ? "fill-current" : ""} ${
+                    isUpdatingWatchlist ? "animate-pulse" : ""
+                  }`}
+                />
+              </button>
             </div>
+          )}
 
-            {/* Anime Details (Mobile: Full Width, Desktop: 2/3 Width) */}
-            <div className="w-full md:w-2/3 p-4 sm:p-6">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                {anime.title.romaji}
-              </h2>
-              <h3 className="text-lg sm:text-xl text-gray-600">
-                {anime.title.native}
-              </h3>
-              <p className="text-gray-700 mt-4 text-base sm:text-lg">
-                {anime.description}
-              </p>
+          <AnimeHeader anime={anime} router={router} />
 
-              {/* Additional Details */}
-              <div className="mt-6 space-y-3">
-                <p className="text-gray-700">
-                  <span className="font-semibold">Status:</span> {anime.status}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Episodes:</span>{" "}
-                  {anime.episodes || "Unknown"}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Genres:</span>{" "}
-                  {anime.genres?.join(", ")}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Average Score:</span>{" "}
-                  {anime.averageScore}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Start Date:</span>{" "}
-                  {anime.startDate?.year}-{anime.startDate?.month}-
-                  {anime.startDate?.day}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">End Date:</span>{" "}
-                  {anime.endDate?.year}-{anime.endDate?.month}-
-                  {anime.endDate?.day}
-                </p>
-                <p className="text-gray-700">
-                  <span className="font-semibold">Studios:</span>{" "}
-                  {anime.studios?.edges
-                    ?.map((studio) => studio.node.name)
-                    .join(", ")}
-                </p>
-              </div>
-
-              {/* Trailer (Mobile: Full Width, Desktop: Responsive) */}
-              {anime.trailer && (
-                <div className="mt-6">
-                  <h4 className="text-xl sm:text-2xl font-semibold text-gray-800">
-                    Trailer
-                  </h4>
-                  <a
-                    href={`https://www.youtube.com/watch?v=${anime.trailer.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Image
-                      src={anime.trailer.thumbnail}
-                      alt="Trailer Thumbnail"
-                      width={480}
-                      height={270}
-                      className="rounded-md mt-2 w-full"
-                    />
-                  </a>
+          {/* Content Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden border border-white/20">
+            <div className="flex flex-col lg:flex-row">
+              <AnimeCover anime={anime} />
+              
+              {/* Details Column */}
+              <div className="w-full lg:w-2/3 p-6">
+                {/* Description */}
+                <div className="mb-6">
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    Synopsis
+                  </h3>
+                  <p className="text-purple-100">
+                    {anime.description?.replace(/<[^>]*>?/gm, "") ||
+                      "No description available."}
+                  </p>
                 </div>
-              )}
+
+                <AnimeMetadata anime={anime} />
+                <AnimeGenres anime={anime} />
+                <AnimeStudios anime={anime} />
+                <AnimeLinks anime={anime} />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
